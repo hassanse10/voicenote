@@ -4,8 +4,6 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(cors());
 app.use(express.json());
@@ -29,7 +27,7 @@ app.post('/api/process', async (req, res) => {
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-        return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured. Create a .env file.' });
+        return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured.' });
     }
 
     try {
@@ -61,9 +59,15 @@ app.post('/api/process', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`VoiceNote server running at http://localhost:${PORT}`);
-    if (!process.env.OPENROUTER_API_KEY) {
-        console.warn('WARNING: OPENROUTER_API_KEY is not set. Copy .env.example to .env and add your key.');
-    }
-});
+// Local development only
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+        console.log(`VoiceNote server running at http://localhost:${PORT}`);
+        if (!process.env.OPENROUTER_API_KEY) {
+            console.warn('WARNING: OPENROUTER_API_KEY is not set.');
+        }
+    });
+}
+
+module.exports = app;
