@@ -7,13 +7,18 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(process.cwd()));
 
 const PROMPTS = {
     grammar: (text) => `Fix the grammar, punctuation, and remove filler words (um, uh, like, you know) from this speech transcript. Return ONLY the corrected text, no explanations:\n\n${text}`,
     summarize: (text) => `Summarize this speech transcript into 2-4 concise bullet points capturing the key ideas. Return ONLY the bullet points starting with "•", no intro or explanations:\n\n${text}`,
     format: (text) => `Auto-detect if this speech transcript is best formatted as an email, a to-do list, or a structured note, then format it accordingly. Return ONLY the formatted result with a clear structure, no meta-commentary:\n\n${text}`,
 };
+
+// Serve index.html for root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'index.html'));
+});
 
 app.post('/api/process', async (req, res) => {
     const { text, operation } = req.body;
