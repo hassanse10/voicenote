@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceNote - Speech to Text</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #ef4444;
+            --primary-light: #fca5a5;
+            --success: #10b981;
+            --ai: #8b5cf6;
+            --bg: #ffffff;
+            --bg-light: #f9fafb;
+            --text: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --bg-light: #1e293b;
+                --text: #f1f5f9;
+                --text-secondary: #cbd5e1;
+                --border: #334155;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 420px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding-bottom: 12px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Recording Section */
+        .recording-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 32px 20px;
+            background: var(--bg-light);
+            border-radius: 16px;
+        }
+
+        .label-small {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .talk-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: manipulation;
+            position: relative;
+        }
+
+        .talk-button:hover:not(.recording) {
+            transform: scale(1.08);
+            box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
+        }
+
+        .talk-button:active:not(.recording) {
+            transform: scale(0.95);
+        }
+
+        .talk-button.recording {
+            background: var(--primary);
+            animation: pulse-record 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-record {
+            0%, 100% { box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3); }
+            50% { box-shadow: 0 8px 32px rgba(239, 68, 68, 0.6); }
+        }
+
+        .recording-time {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--primary);
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            min-height: 16px;
+        }
+
+        .recording-indicator.active {
+            opacity: 1;
+        }
+
+        .recording-indicator::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49%, 100% { opacity: 1; }
+            50%, 99% { opacity: 0.4; }
+        }
+
+        /* Transcript Section */
+        .transcript-section {
+            padding: 20px;
+            background: var(--bg-light);
+            border-radius: 12px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .transcript-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .transcript-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text);
+            flex: 1;
+            word-break: break-word;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+        }
+
+        .transcript-text.placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .char-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+        }
+
+        .btn-primary {
+            background: var(--success);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+            flex: 1;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            opacity: 0.8;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* AI Section */
+        .ai-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ai-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn-ai {
+            background: transparent;
+            border: 1.5px solid var(--ai);
+            color: var(--ai);
+            padding: 10px 12px;
+            font-size: 11px;
+            text-transform: none;
+            letter-spacing: 0;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            font-weight: 500;
+        }
+
+        .btn-ai:hover:not(:disabled) {
+            background: var(--ai);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-ai:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-ai.loading {
+            background: var(--ai);
+            color: white;
+            cursor: wait;
+        }
+
+        .btn-ai.loading::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: rgba(255,255,255,0.4);
+            animation: loading-bar 1s ease-in-out infinite;
+        }
+
+        @keyframes loading-bar {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* AI Result */
+        .ai-result-area {
+            background: var(--bg-light);
+            border: 1.5px solid var(--ai);
+            border-radius: 12px;
+            padding: 16px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .ai-result-area.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-result-header {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--ai);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ai-result-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text);
+            word-break: break-word;
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+        }
+
+        .btn-copy-ai {
+            background: var(--ai);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-copy-ai:hover {
+            opacity: 0.9;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Error */
+        .error-message {
+            background: var(--primary);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Browser Warning */
+        .browser-warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .browser-warning.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">VoiceNote</h1>
+            <p class="subtitle">Speech to text • AI enhanced</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="browser-warning" id="browserWarning">
+            ⚠️ Speech recognition not supported. Use Chrome, Firefox, Safari, or Edge.
+        </div>
+
+        <div class="recording-section">
+            <div class="label-small">Click & Hold to Record</div>
+            <button class="talk-button" id="talkButton" title="Hold to start recording">🎤</button>
+            <div class="recording-indicator" id="recordingIndicator">Recording</div>
+            <div class="recording-time" id="recordingTime"></div>
+        </div>
+
+        <div class="transcript-section">
+            <div class="transcript-label">Transcript</div>
+            <div class="transcript-text placeholder" id="transcriptText">Click and hold the button to start talking...</div>
+            <div class="char-count" id="charCount">0 characters</div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" id="copyButton" disabled>📋 Copy</button>
+            <button class="btn-secondary" id="clearButton" disabled>Clear</button>
+        </div>
+
+        <div class="ai-section">
+            <div class="ai-buttons">
+                <button class="btn-ai" id="btnGrammar" disabled>✏️ Grammar</button>
+                <button class="btn-ai" id="btnSummarize" disabled>📝 Summary</button>
+                <button class="btn-ai" id="btnFormat" disabled>🗂️ Format</button>
+            </div>
+            <div class="ai-result-area" id="aiResultArea">
+                <div class="ai-result-header">
+                    <span id="aiResultLabel">AI Result</span>
+                    <button class="btn-copy-ai" id="copyAiButton">Copy</button>
+                </div>
+                <div class="ai-result-text" id="aiResultText"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const talkButton = document.getElementById('talkButton');
+        const transcriptText = document.getElementById('transcriptText');
+        const charCount = document.getElementById('charCount');
+        const copyButton = document.getElementById('copyButton');
+        const clearButton = document.getElementById('clearButton');
+        const toast = document.getElementById('toast');
+        const errorMessage = document.getElementById('errorMessage');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const recordingTime = document.getElementById('recordingTime');
+        const browserWarning = document.getElementById('browserWarning');
+        const btnGrammar = document.getElementById('btnGrammar');
+        const btnSummarize = document.getElementById('btnSummarize');
+        const btnFormat = document.getElementById('btnFormat');
+        const aiResultArea = document.getElementById('aiResultArea');
+        const aiResultText = document.getElementById('aiResultText');
+        const aiResultLabel = document.getElementById('aiResultLabel');
+        const copyAiButton = document.getElementById('copyAiButton');
+
+        const API_BASE = window.location.origin;
+
+        let recognition;
+        let isRecording = false;
+        let currentTranscript = '';
+        let finalTranscript = '';
+        let recordingStartTime = 0;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            browserWarning.classList.add('show');
+            talkButton.disabled = true;
+            showError('Speech recognition not supported in your browser');
+        } else {
+            try {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+            } catch (e) {
+                showError('Failed to initialize speech recognition');
+                talkButton.disabled = true;
+            }
+        }
+
+        if (recognition) {
+            recognition.onstart = () => {
+                isRecording = true;
+                talkButton.classList.add('recording');
+                recordingIndicator.classList.add('active');
+                currentTranscript = '';
+                recordingStartTime = Date.now();
+                updateRecordingTime();
+            };
+
+            recognition.onresult = (event) => {
+                currentTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    currentTranscript += transcript + ' ';
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    }
+                }
+                updateDisplay();
+            };
+
+            recognition.onerror = (event) => {
+                showError(`Error: ${event.error}`);
+                stopRecording();
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                talkButton.classList.remove('recording');
+                recordingIndicator.classList.remove('active');
+                recordingTime.textContent = '';
+                if (finalTranscript.trim()) {
+                    copyToClipboard(false);
+                }
+            };
+        }
+
+        talkButton.addEventListener('mousedown', startRecording);
+        talkButton.addEventListener('mouseup', stopRecording);
+        talkButton.addEventListener('mouseleave', stopRecording);
+        talkButton.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
+        talkButton.addEventListener('touchend', stopRecording);
+
+        copyButton.addEventListener('click', () => copyToClipboard(true));
+        clearButton.addEventListener('click', clearTranscript);
+        btnGrammar.addEventListener('click', () => processWithAI('grammar'));
+        btnSummarize.addEventListener('click', () => processWithAI('summarize'));
+        btnFormat.addEventListener('click', () => processWithAI('format'));
+        copyAiButton.addEventListener('click', copyAiResult);
+
+        function startRecording() {
+            if (!isRecording && recognition) {
+                try {
+                    clearError();
+                    recognition.start();
+                } catch (e) {}
+            }
+        }
+
+        function stopRecording() {
+            if (isRecording && recognition) {
+                try {
+                    recognition.stop();
+                } catch (e) {}
+            }
+        }
+
+        function updateRecordingTime() {
+            if (isRecording) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                recordingTime.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                setTimeout(updateRecordingTime, 100);
+            }
+        }
+
+        function updateDisplay() {
+            const displayText = (finalTranscript + currentTranscript).trim();
+            if (displayText) {
+                transcriptText.textContent = displayText;
+                transcriptText.classList.remove('placeholder');
+            } else {
+                transcriptText.textContent = 'Listening...';
+                transcriptText.classList.add('placeholder');
+            }
+            charCount.textContent = `${displayText.length} characters`;
+            updateButtons();
+        }
+
+        function copyToClipboard(showNotice) {
+            const textToCopy = (finalTranscript + currentTranscript).trim();
+            if (!textToCopy) return;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => { if (showNotice) showToast('✓ Copied'); })
+                .catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = textToCopy;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    if (showNotice) showToast('✓ Copied');
+                });
+        }
+
+        function clearTranscript() {
+            finalTranscript = '';
+            currentTranscript = '';
+            transcriptText.textContent = 'Click and hold the button to start talking...';
+            transcriptText.classList.add('placeholder');
+            charCount.textContent = '0 characters';
+            aiResultArea.classList.remove('show');
+            updateButtons();
+        }
+
+        function updateButtons() {
+            const hasText = (finalTranscript + currentTranscript).trim().length > 0;
+            copyButton.disabled = !hasText;
+            clearButton.disabled = !hasText;
+            btnGrammar.disabled = !hasText;
+            btnSummarize.disabled = !hasText;
+            btnFormat.disabled = !hasText;
+        }
+
+        async function processWithAI(operation) {
+            const text = (finalTranscript + currentTranscript).trim();
+            if (!text) return;
+
+            const btn = { grammar: btnGrammar, summarize: btnSummarize, format: btnFormat }[operation];
+            const labels = { grammar: '✏️ Grammar Fix', summarize: '📝 Summary', format: '🗂️ Format' };
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            aiResultArea.classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, operation }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Processing failed');
+                }
+
+                aiResultLabel.textContent = labels[operation];
+                aiResultText.textContent = data.result;
+                aiResultArea.classList.add('show');
+            } catch (err) {
+                showError('AI error: ' + err.message);
+            } finally {
+                btn.classList.remove('loading');
+                updateButtons();
+            }
+        }
+
+        function copyAiResult() {
+            const text = aiResultText.textContent;
+            if (!text) return;
+            navigator.clipboard.writeText(text)
+                .then(() => showToast('✓ AI result copied'))
+                .catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('✓ AI result copied');
+                });
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        function clearError() {
+            errorMessage.classList.remove('show');
+        }
+    </script>
+</body>
+</html>
